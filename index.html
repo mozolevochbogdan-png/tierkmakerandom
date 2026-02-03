@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tier List Maker Pro — Ultimate</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        :root {
+            --bg: #0f0f10;
+            --surface: #18181b;
+            --surface-hover: #27272a;
+            --border: #3f3f46;
+            --text-main: #f4f4f5;
+            --text-dim: #a1a1aa;
+            --accent: #10a37f; /* ChatGPT Green */
+            --danger: #ef4444;
+            --font: 'Inter', sans-serif;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text-main);
+            font-family: var(--font);
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* --- EDITOR --- */
+        #editor-screen {
+            display: flex;
+            padding: 30px;
+            gap: 30px;
+            max-width: 1400px;
+            margin: 0 auto;
+            min-height: 100vh;
+            box-sizing: border-box;
+        }
+
+        .editor-col {
+            flex: 1;
+            background: var(--surface);
+            padding: 25px;
+            border-radius: 20px;
+            border: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+
+        h2 { margin-top: 0; font-size: 1.5rem; border-bottom: 1px solid var(--border); padding-bottom: 15px; font-weight: 600; }
+        label { color: var(--text-dim); font-size: 0.85rem; margin-bottom: 5px; display: block; }
+        
+        input[type="text"] {
+            background: var(--surface-hover);
+            border: 1px solid var(--border);
+            color: white;
+            padding: 12px;
+            border-radius: 10px;
+            width: 100%;
+            box-sizing: border-box;
+            font-family: inherit;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        input[type="text"]:focus { border-color: var(--accent); }
+
+        .tier-input-row { display: flex; gap: 10px; margin-bottom: 10px; }
+        .btn-icon { padding: 0 12px; border-radius: 8px; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.2s; }
+        .btn-del { background: rgba(239, 68, 68, 0.1); color: var(--danger); }
+        .btn-del:hover { background: var(--danger); color: white; }
+
+        .btn-add { background: var(--surface-hover); color: var(--text-main); width: 100%; padding: 12px; border: 1px dashed var(--border); border-radius: 10px; cursor: pointer; transition: 0.2s; }
+        .btn-add:hover { border-color: var(--text-dim); background: #2f2f33; }
+
+        .img-list-container { overflow-y: auto; flex-grow: 1; max-height: 50vh; padding-right: 5px; }
+        .img-item { display: flex; align-items: center; gap: 15px; background: var(--bg); padding: 12px; border-radius: 12px; margin-bottom: 10px; border: 1px solid var(--border); }
+        .img-preview { width: 50px; height: 50px; object-fit: cover; border-radius: 8px; }
+
+        .btn-primary {
+            background: var(--accent);
+            color: white;
+            font-weight: 700;
+            padding: 16px;
+            border-radius: 12px;
+            border: none;
+            cursor: pointer;
+            font-size: 1rem;
+            width: 100%;
+            margin-top: 10px;
+        }
+        .btn-share { background: #3b82f6; }
+
+        /* --- GAME --- */
+        #game-screen { display: none; flex-direction: column; align-items: center; padding: 20px; max-width: 1100px; margin: 0 auto; }
+        header { width: 100%; display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        
+        .tier-grid { width: 100%; background: #111; border: 2px solid #333; border-radius: 8px; overflow: hidden; }
+        .tier-row { display: flex; min-height: 110px; border-bottom: 1px solid #333; }
+        .tier-label { width: 120px; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 1.1rem; color: #000; text-align: center; padding: 10px; word-break: break-word; }
+        .tier-content { flex: 1; background: #1a1a1a; padding: 10px; display: flex; flex-wrap: wrap; gap: 10px; align-content: flex-start; }
+        .tier-content.drag-over { background: #252525; box-shadow: inset 0 0 10px var(--accent); }
+
+        /* Tier Colors */
+        .tc-0 { background: #ff7f7f; } .tc-1 { background: #ffbf7f; } .tc-2 { background: #ffdf7f; }
+        .tc-3 { background: #ffff7f; } .tc-4 { background: #bfff7f; } .tc-5 { background: #7f7fff; }
+
+        .game-token { width: 85px; height: 85px; object-fit: cover; border-radius: 4px; cursor: grab; box-shadow: 0 4px 8px rgba(0,0,0,0.5); }
+        .game-token:active { cursor: grabbing; }
+
+        /* DECK AREA */
+        .deck-container {
+            position: fixed;
+            bottom: 25px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(24, 24, 27, 0.95);
+            backdrop-filter: blur(15px);
+            padding: 15px 40px;
+            border-radius: 100px;
+            border: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 30px;
+            z-index: 100;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+        }
+
+        .deck-stack {
+            width: 70px;
+            height: 90px;
+            background: linear-gradient(135deg, var(--accent), #0b7a5f);
+            border: 3px solid white;
+            border-radius: 10px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 900;
+            font-size: 1.5rem;
+            color: white;
+            transition: 0.2s;
+        }
+        .deck-stack:hover { transform: translateY(-5px) rotate(-2deg); }
+
+        #active-card-slot {
+            width: 90px;
+            height: 90px;
+            border: 2px dashed #444;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: 0.2s;
+        }
+        #active-card-slot.drag-over { border-color: var(--accent); background: rgba(16, 163, 127, 0.1); }
+
+        /* REVEAL */
+        .reveal-modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.98);
+            z-index: 999;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        .reveal-text { color: white; font-size: 3.5rem; font-weight: 900; text-transform: uppercase; margin-bottom: 20px; text-align: center; }
+        .reveal-img-large { max-height: 60vh; max-width: 85vw; border: 6px solid white; border-radius: 10px; }
+
+        .control-btn { background: #27272a; color: white; border: 1px solid #3f3f46; padding: 10px 20px; border-radius: 10px; cursor: pointer; font-weight: 600; }
+        .control-btn:hover { background: #3f3f46; }
+    </style>
+</head>
+<body>
+
+    <div id="editor-screen">
+        <div class="editor-col">
+            <h2>⚙️ Настройка тиров</h2>
+            <div>
+                <label>Заголовок</label>
+                <input type="text" id="setup-title" value="Лучшая игра 2025">
+            </div>
+            <div>
+                <label>Варианты (можно удалять и добавлять)</label>
+                <div id="tiers-list-container"></div>
+                <button class="btn-add" onclick="addTierRow()">+ Добавить вариант</button>
+            </div>
+            <div style="margin-top: auto;">
+                <button class="btn-primary" onclick="startGame()">💾 СОХРАНИТЬ И ИГРАТЬ</button>
+                <button class="btn-primary btn-share" onclick="shareTemplate()">🔗 Копировать ссылку</button>
+            </div>
+        </div>
+
+        <div class="editor-col">
+            <h2>📸 Фото и тексты</h2>
+            <button class="btn-add" style="border-color: var(--accent); color: var(--accent);" onclick="document.getElementById('file-input').click()">
+                + Загрузить пачку фото
+            </button>
+            <input type="file" id="file-input" multiple accept="image/*" style="display: none;">
+            
+            <div class="img-list-container" id="images-editor-list">
+                <div style="text-align: center; color: var(--text-dim); padding-top: 40px;">Нет загруженных фото</div>
+            </div>
+        </div>
+    </div>
+
+    <div id="game-screen">
+        <header>
+            <h1 id="game-title">Название</h1>
+            <div style="display: flex; gap: 10px;">
+                <button class="control-btn" onclick="downloadResults()">📷 Скачать итог</button>
+                <button class="control-btn" onclick="location.reload()">✏️ В редактор</button>
+            </div>
+        </header>
+
+        <div id="tier-board" class="tier-grid"></div>
+
+        <div class="deck-container">
+            <div id="deck-count" style="color: var(--text-dim); font-size: 0.8rem; font-weight: 600;">ОСТАЛОСЬ: 0</div>
+            <div class="deck-stack" id="deck-btn" onclick="revealCard()">?</div>
+            <div id="active-card-slot" ondrop="drop(event)" ondragover="allowDrop(event)">
+                <span style="color: #444; font-size: 0.8rem; text-align: center;">Слот для<br>карты</span>
+            </div>
+        </div>
+    </div>
+
+    <div id="reveal-modal" class="reveal-modal" onclick="closeReveal()">
+        <div class="reveal-text" id="reveal-text-display">ВАМ ВЫПАЛО:</div>
+        <img src="" id="reveal-img-display" class="reveal-img-large">
+        <div style="margin-top: 30px; color: var(--text-dim); font-size: 1.2rem;">Кликните, чтобы забрать</div>
+    </div>
+
+    <script>
+        let appData = {
+            title: "Мой Тир-Лист",
+            tiers: ["S", "A", "B", "C", "D", "F"],
+            images: []
+        };
+
+        window.onload = function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.has('config')) {
+                try {
+                    const config = JSON.parse(atob(urlParams.get('config')));
+                    appData.title = config.title;
+                    appData.tiers = config.tiers;
+                } catch(e) {}
+            }
+            document.getElementById('setup-title').value = appData.title;
+            renderTierInputs();
+        };
+
+        // --- EDITOR LOGIC ---
+        function renderTierInputs() {
+            const container = document.getElementById('tiers-list-container');
+            container.innerHTML = '';
+            appData.tiers.forEach((tier, i) => {
+                container.innerHTML += `
+                    <div class="tier-input-row">
+                        <input type="text" value="${tier}" oninput="appData.tiers[${i}]=this.value">
+                        <button class="btn-icon btn-del" onclick="deleteTier(${i})">✕</button>
+                    </div>`;
+            });
+        }
+
+        function addTierRow() { appData.tiers.push("Новый"); renderTierInputs(); }
+        function deleteTier(i) { if(appData.tiers.length > 1) { appData.tiers.splice(i,1); renderTierInputs(); } }
+
+        document.getElementById('file-input').addEventListener('change', function(e) {
+            const container = document.getElementById('images-editor-list');
+            if(appData.images.length === 0) container.innerHTML = '';
+
+            Array.from(e.target.files).forEach(file => {
+                const reader = new FileReader();
+                reader.onload = (ev) => {
+                    const imgObj = { id: Date.now() + Math.random(), src: ev.target.result, text: "ИГРА ВЫШЛА!" };
+                    appData.images.push(imgObj);
+                    const div = document.createElement('div');
+                    div.className = 'img-item';
+                    div.innerHTML = `
+                        <img src="${imgObj.src}" class="img-preview">
+                        <div style="flex:1;"><input type="text" value="${imgObj.text}" oninput="updateImgText(${imgObj.id}, this.value)"></div>
+                        <button class="btn-icon btn-del" onclick="this.parentElement.remove(); removeImg(${imgObj.id})">✕</button>`;
+                    container.appendChild(div);
+                };
+                reader.readAsDataURL(file);
+            });
+        });
+
+        function updateImgText(id, val) { const img = appData.images.find(i => i.id === id); if(img) img.text = val; }
+        function removeImg(id) { appData.images = appData.images.filter(i => i.id !== id); }
+
+        function shareTemplate() {
+            const config = btoa(JSON.stringify({ title: document.getElementById('setup-title').value, tiers: appData.tiers }));
+            const url = window.location.origin + window.location.pathname + "?config=" + config;
+            navigator.clipboard.writeText(url).then(() => alert("Ссылка скопирована!"));
+        }
+
+        // --- GAME LOGIC ---
+        function startGame() {
+            if(appData.images.length === 0) return alert("Загрузите фото!");
+            document.getElementById('editor-screen').style.display = 'none';
+            document.getElementById('game-screen').style.display = 'flex';
+            document.getElementById('game-title').innerText = document.getElementById('setup-title').value;
+            
+            const board = document.getElementById('tier-board');
+            board.innerHTML = '';
+            appData.tiers.forEach((tier, i) => {
+                board.innerHTML += `
+                    <div class="tier-row">
+                        <div class="tier-label tc-${i % 6}">${tier}</div>
+                        <div class="tier-content" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
+                    </div>`;
+            });
+            updateDeckCount();
+        }
+
+        function updateDeckCount() {
+            document.getElementById('deck-count').innerText = `ОСТАЛОСЬ: ${appData.images.length}`;
+            if(appData.images.length === 0) document.getElementById('deck-btn').style.opacity = "0.3";
+        }
+
+        let currentImg = null;
+        function revealCard() {
+            if(appData.images.length === 0) return;
+            currentImg = appData.images.shift();
+            updateDeckCount();
+            document.getElementById('reveal-img-display').src = currentImg.src;
+            document.getElementById('reveal-text-display').innerText = currentImg.text;
+            document.getElementById('reveal-modal').style.display = 'flex';
+        }
+
+        function closeReveal() {
+            document.getElementById('reveal-modal').style.display = 'none';
+            const slot = document.getElementById('active-card-slot');
+            slot.innerHTML = '';
+            const img = document.createElement('img');
+            img.src = currentImg.src;
+            img.className = 'game-token';
+            img.id = 'img-' + Date.now();
+            img.draggable = true;
+            img.addEventListener('dragstart', (e) => {
+                e.dataTransfer.setData("text", e.target.id);
+                e.target.style.opacity = "0.5";
+            });
+            img.addEventListener('dragend', (e) => e.target.style.opacity = "1");
+            slot.appendChild(img);
+        }
+
+        // --- IMPROVED DRAG & DROP ---
+        function allowDrop(ev) {
+            ev.preventDefault();
+            let target = ev.target;
+            while(target && !target.classList.contains('tier-content') && target.id !== 'active-card-slot') {
+                target = target.parentElement;
+            }
+            if(target) target.classList.add('drag-over');
+        }
+
+        function drop(ev) {
+            ev.preventDefault();
+            document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+            const id = ev.dataTransfer.getData("text");
+            const el = document.getElementById(id);
+            if(!el) return;
+
+            let target = ev.target;
+            while(target && !target.classList.contains('tier-content') && target.id !== 'active-card-slot') {
+                target = target.parentElement;
+            }
+            if(target) target.appendChild(el);
+        }
+
+        document.addEventListener('dragleave', (e) => {
+            if(e.target.classList.contains('tier-content') || e.target.id === 'active-card-slot') {
+                e.target.classList.remove('drag-over');
+            }
+        });
+
+        function downloadResults() {
+            html2canvas(document.getElementById('tier-board')).then(canvas => {
+                const a = document.createElement('a');
+                a.download = 'tier-list.png';
+                a.href = canvas.toDataURL();
+                a.click();
+            });
+        }
+    </script>
+</body>
+</html>
